@@ -1,0 +1,27 @@
+name: Kiosk Center
+version: "0.1.0"
+slug: kiosk_center
+description: Zarządzanie tabletami kiosku - wiadomości głosowe, komunikaty, gry, bateria i energia ładowania
+url: https://github.com/wiacekmarcin/ha_kiosk_center
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: services
+boot: auto
+host_network: true
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:tablet-dashboard
+panel_title: Tablety
+homeassistant_api: true
+services:
+  - mqtt:want
+options:
+  tcp_port: 47700
+  udp_port: 47701
+  log_level: info
+schema:
+  tcp_port: port
+  udp_port: port
+  log_level: list(debug|info|warning|error)
