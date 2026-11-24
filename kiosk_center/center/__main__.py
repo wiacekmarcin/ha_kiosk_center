@@ -57,7 +57,9 @@ async def main():
         await center.start()
         runner = web.AppRunner(make_app(center), access_log=None)
         await runner.setup()
-        await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("WEB_PORT", 8099))).start()
+        # port okna = ingress_port z config.yaml
+        await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("WEB_PORT", 47702))).start()
+        log.info("Okno aplikacji (ingress) na porcie %s", os.environ.get("WEB_PORT", 47702))
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):

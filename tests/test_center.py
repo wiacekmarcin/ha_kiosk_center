@@ -205,6 +205,7 @@ async def main():
     shutil.rmtree(DATA, ignore_errors=True)
 
 
-asyncio.run(main())
-print("CENTER_FAIL\n" + "\n".join(ERRORS) if ERRORS else "CENTER_OK")
-sys.exit(1 if ERRORS else 0)
+if __name__ == "__main__":         # test_client.py używa klasy Tablet i sample_audio
+    asyncio.run(main())
+    print("CENTER_FAIL\n" + "\n".join(ERRORS) if ERRORS else "CENTER_OK")
+    sys.exit(1 if ERRORS else 0)

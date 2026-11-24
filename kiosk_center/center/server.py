@@ -15,7 +15,7 @@ from .store import ConfigError
 
 _LOG = logging.getLogger(__name__)
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 HELLO_TIMEOUT = 15
 OFFLINE_POWER_ON = 15 * 60      # s bez połączenia: włącz zasilanie tabletu (rozładowany?)
 SAVE_SECONDS = 300
