@@ -1,5 +1,5 @@
 name: Kiosk Center
-version: "0.1.1"
+version: "0.1.2"
 slug: kiosk_center
 description: Zarządzanie tabletami kiosku - wiadomości głosowe, komunikaty, gry, bateria i energia ładowania
 url: https://github.com/wiacekmarcin/ha_kiosk_center
@@ -21,8 +21,10 @@ services:
 options:
   tcp_port: 47700
   udp_port: 47701
+  ntp_server: pool.ntp.org
   log_level: info
 schema:
   tcp_port: port
   udp_port: port
+  ntp_server: str
   log_level: list(debug|info|warning|error)

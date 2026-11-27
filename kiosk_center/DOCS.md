@@ -19,6 +19,8 @@ bez tokenu Home Assistant.
   silnik mowy, skróty komunikatów, encje ekranów tabletów.
 
 Tablet, który połączy się pierwszy raz, sam dopisuje się do konfiguracji.
+Podczas automatycznej rejestracji centrum wybiera pierwszy format z listy `formats`
+zgłoszonej przez tablet; jeśli lista jest pusta lub nieznana, używa M4A.
 
 ## Encje (MQTT, broker Mosquitto)
 
@@ -48,4 +50,7 @@ data:
 ## Porty
 
 - TCP 47700 - połączenia tabletów, UDP 47701 - odnajdywanie centrum (zmiana w opcjach).
+- Serwer NTP ustawia się w konfiguracji dodatku Home Assistant (`ntp_server`, domyślnie
+  `pool.ntp.org`). Po restarcie centrum jego adres trafia do tabletów przy połączeniu;
+  tablety używają go do zegara aplikacji i konfiguracji automatycznego czasu Androida.
 - Protokół: `center/protocol.py`.

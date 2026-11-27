@@ -1,10 +1,9 @@
 """Start Kiosk Center: python3 -m center.
 
-Opcje aplikacji HA: /data/options.json (tcp_port, udp_port, log_level). Na komputerze:
-zmienne DATA_DIR, TCP_PORT, UDP_PORT, WEB_PORT, LOG_LEVEL, HA_URL, HA_TOKEN, MQTT_*.
+Opcje aplikacji HA: /data/options.json (tcp_port, udp_port, ntp_server, log_level). Na komputerze:
+zmienne DATA_DIR, TCP_PORT, UDP_PORT, NTP_SERVER, WEB_PORT, LOG_LEVEL, HA_URL, HA_TOKEN, MQTT_*.
 """
 import asyncio
-import json
 import logging
 import os
 import signal
@@ -15,22 +14,10 @@ from aiohttp import web
 from .energy import EnergyMeter
 from .ha import HAClient
 from .mqtt import MqttBridge, broker_info
+from .options import options
 from .server import VERSION, Center
 from .store import Store
 from .web import make_app
-
-
-def options() -> dict:
-    opts = {"tcp_port": 47700, "udp_port": 47701, "log_level": "info"}
-    try:
-        with open("/data/options.json", encoding="utf-8") as f:
-            opts.update(json.load(f))
-    except (OSError, ValueError):
-        pass
-    for key, env in (("tcp_port", "TCP_PORT"), ("udp_port", "UDP_PORT"), ("log_level", "LOG_LEVEL")):
-        if os.environ.get(env):
-            opts[key] = os.environ[env]
-    return opts
 
 
 async def main():
@@ -43,7 +30,8 @@ async def main():
     async with aiohttp.ClientSession() as session:
         ha = HAClient(session)
         energy = EnergyMeter(store, ha)
-        center = Center(store, ha, energy, None, int(opts["tcp_port"]), int(opts["udp_port"]))
+        center = Center(store, ha, energy, None, int(opts["tcp_port"]), int(opts["udp_port"]),
+                        ntp_server=str(opts["ntp_server"]))
         info = await broker_info(session)
         if info:
             mqtt = MqttBridge(on_notify=lambda tid, text: asyncio.ensure_future(

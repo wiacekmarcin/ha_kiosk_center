@@ -41,14 +41,14 @@ def check(cond, text):
 
 class Tablet:
     """Symulowany tablet: połączenie TCP z własnego adresu 127.0.0.x."""
-    def __init__(self, name, ip):
-        self.name, self.ip = name, ip
+    def __init__(self, name, ip, formats=("m4a", "mp3")):
+        self.name, self.ip, self.formats = name, ip, list(formats)
         self.inbox = asyncio.Queue()
 
     async def connect(self):
         self.reader, self.writer = await asyncio.open_connection("127.0.0.1", TCP, local_addr=(self.ip, 0))
         await self.send({"type": "hello", "name": self.name, "model": "Symulator", "app": "test",
-                         "version": "1.0", "formats": ["m4a", "mp3"]})
+                         "version": "1.0", "formats": self.formats})
         self.welcome = await self.recv()
         self._task = asyncio.create_task(self._loop())
 
@@ -116,6 +116,13 @@ async def main():
         ids = {t["name"]: t["id"] for t in store.tablets.values()}
         check(set(ids) == {"Test A", "Test B"} and store.tablets[ids["Test B"]]["ip"] == "127.0.0.3",
               f"nowe tablety dodane do konfiguracji: {ids}")
+        lustro = Tablet("Lustro", "127.0.0.4", formats=("mp3",))
+        await lustro.connect()
+        lt = store.by_name("Lustro")
+        check(lt and lt["ip"] == "127.0.0.4" and lt["audio_format"] == "mp3"
+              and lt["voice"], f"Lustro dodane z MP3 i odbiorem komunikatów: {lt}")
+        if lt:
+            store.update(lt["id"], {"voice": False})
 
         # 3. status i lista w panelu
         await a.send({"type": "status", "battery": 25, "charging": True, "temperature": 31.5})

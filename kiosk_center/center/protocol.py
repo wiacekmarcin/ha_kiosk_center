@@ -10,7 +10,8 @@ Połączenie (TCP, port tcp_port) - ramki:
     zaraz za nim N bajtów danych (nagranie, mowa). Pole "size" ustawia encode().
 
 Tablet -> centrum:
-    hello   {name, model, app, version, formats}      pierwsza ramka, odpowiedź: welcome
+    hello   {name, model, app, version, formats}      pierwsza ramka, odpowiedź: welcome;
+                                                      nowy tablet dostaje pierwszy obsługiwany format
     status  {battery, charging, temperature, ...}     co STATUS_SECONDS s i po zmianie
     ping                                             odpowiedź: pong
     get     {screen | entities, req}                 odpowiedź: data {screen, req, states}
@@ -19,7 +20,7 @@ Tablet -> centrum:
     game    {to, game, session, kind, ...}           gra przez sieć - przekazywana dalej
     tablets                                          odpowiedź: tablets {list}
 Centrum -> tablet:
-    welcome {tablet, center, tablets}, pong, data, tablets,
+    welcome {tablet, center {ntp_server}, tablets}, pong, data, tablets,
     voice   {from, time, duration, format} + bajty w formacie tabletu
     text    {from, time, text, format?} (+ bajty mowy, gdy jest)
     game    {from, ...}                              od drugiego tabletu

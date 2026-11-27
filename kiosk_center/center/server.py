@@ -11,15 +11,24 @@ from datetime import datetime
 
 from . import audio
 from .protocol import STATUS_SECONDS, TIMEOUT_SECONDS, ProtocolError, encode, read_frame
-from .store import ConfigError
+from .store import AUDIO_FORMATS, ConfigError
 
 _LOG = logging.getLogger(__name__)
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 HELLO_TIMEOUT = 15
 OFFLINE_POWER_ON = 15 * 60      # s bez połączenia: włącz zasilanie tabletu (rozładowany?)
 SAVE_SECONDS = 300
 HISTORY = 30
+
+
+def _audio_format_for_hello(hello: dict) -> str:
+    formats = hello.get("formats")
+    if isinstance(formats, list):
+        for fmt in formats:
+            if isinstance(fmt, str) and fmt in AUDIO_FORMATS:
+                return fmt
+    return "m4a"
 
 
 def now_text() -> str:
@@ -67,9 +76,11 @@ class Discovery(asyncio.DatagramProtocol):
 
 
 class Center:
-    def __init__(self, store, ha, energy, mqtt=None, tcp_port=47700, udp_port=47701):
+    def __init__(self, store, ha, energy, mqtt=None, tcp_port=47700, udp_port=47701,
+                 ntp_server="pool.ntp.org"):
         self.store, self.ha, self.energy, self.mqtt = store, ha, energy, mqtt
         self.tcp_port, self.udp_port = tcp_port, udp_port
+        self.ntp_server = str(ntp_server).strip() or "pool.ntp.org"
         self.conns: dict[str, TabletConn] = {}
         self.status: dict[str, dict] = {}        # tid -> ostatni status tabletu
         self.offline_since: dict[str, float] = {}
@@ -156,7 +167,8 @@ class Center:
                 name = str(hello.get("name") or f"Tablet {ip}")[:40]
                 if self.store.by_name(name):
                     name = f"{name} ({ip})"
-                t = self.store.add({"name": name, "ip": ip, "model": str(hello.get("model", ""))[:40]})
+                t = self.store.add({"name": name, "ip": ip, "model": str(hello.get("model", ""))[:40],
+                                    "audio_format": _audio_format_for_hello(hello)})
                 _LOG.info("Nowy tablet %s (%s) dodany do konfiguracji", t["name"], ip)
                 if self.mqtt:
                     self.mqtt.discover([t])
@@ -175,7 +187,7 @@ class Center:
             _LOG.info("Tablet %s połączony (%s, %s %s)", t["name"], ip, hello.get("app"),
                       hello.get("version"))
             await conn.send({"type": "welcome", "tablet": self._tablet_public(t),
-                             "center": {"version": VERSION, "status_seconds": STATUS_SECONDS},
+                             "center": self._center_public(),
                              "tablets": self.online_names()})
             self.publish(t["id"])
             if self.mqtt:
@@ -208,6 +220,10 @@ class Center:
     @staticmethod
     def _tablet_public(t: dict) -> dict:
         return {k: t[k] for k in ("id", "name", "place", "model", "voice", "audio_format")}
+
+    def _center_public(self) -> dict:
+        return {"version": VERSION, "status_seconds": STATUS_SECONDS,
+                "ntp_server": self.ntp_server}
 
     def online_names(self) -> list:
         return sorted(c.name for c in self.conns.values())
