@@ -15,7 +15,7 @@ from .store import AUDIO_FORMATS, ConfigError
 
 _LOG = logging.getLogger(__name__)
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 HELLO_TIMEOUT = 15
 OFFLINE_POWER_ON = 15 * 60      # s bez połączenia: włącz zasilanie tabletu (rozładowany?)
 SAVE_SECONDS = 300
@@ -85,6 +85,8 @@ class Center:
         self.status: dict[str, dict] = {}        # tid -> ostatni status tabletu
         self.offline_since: dict[str, float] = {}
         self.switch_sent: dict[str, tuple] = {}   # tid -> (stan, czas) ostatniego polecenia
+        self.charger_sent: dict[str, tuple] = {}  # tid -> (moc, energia) ostatnio wysłane
+        self._bg: set = set()                     # zadania wysyłki w tle
         self.history = deque(maxlen=HISTORY)    # ostatnie wiadomości (panel)
         self._server = None
         self._udp = None
@@ -130,6 +132,7 @@ class Center:
                 "last_seen": st.get("time")}
 
     def publish(self, tid: str):
+        self.push_charger(tid)          # moc i energia do tabletu (TCP), gdy się zmieniły
         t = self.store.tablets.get(tid)
         if not self.mqtt or not t:
             return
@@ -377,6 +380,40 @@ class Center:
                 await conn.send({"type": "config", "tablet": self._tablet_public(t)})
             except Exception:           # noqa: BLE001
                 pass
+            self.push_charger(tid, force=True)  # encje ładowarki mogły się zmienić
+
+    def push_charger(self, tid: str, force: bool = False):
+        """Moc (W) i energia ładowania (kWh) z encji tabletu w panelu -> tablet (ramka
+        charger), tylko gdy się zmieniły. Tablet niepołączony = zapomnienie ostatniej
+        wysłanej wartości (po połączeniu tablet dostaje ją od nowa)."""
+        conn = self.conns.get(tid)
+        t = self.store.tablets.get(tid)
+        if conn is None or t is None:
+            self.charger_sent.pop(tid, None)
+            return
+        power = self.energy.power(tid)
+        energy = self.energy.kwh(tid) if (t["power_entity"] or t["energy_entity"]) else None
+        msg = {"type": "charger",
+               "power": round(power, 1) if isinstance(power, (int, float)) else None,
+               "energy": round(energy, 3) if energy is not None else None}
+        key = (msg["power"], msg["energy"])
+        if not force and self.charger_sent.get(tid) == key:
+            return
+        self.charger_sent[tid] = key
+        try:
+            task = asyncio.get_running_loop().create_task(self._send_quiet(conn, msg))
+        except RuntimeError:            # poza pętlą asyncio (testy) - nic do wysłania
+            self.charger_sent.pop(tid, None)
+            return
+        self._bg.add(task)              # referencja do końca wysyłki
+        task.add_done_callback(self._bg.discard)
+
+    @staticmethod
+    async def _send_quiet(conn: TabletConn, msg: dict):
+        try:
+            await conn.send(msg)
+        except Exception as e:          # noqa: BLE001 - zerwane łącze obsłuży _client
+            _LOG.debug("Tablet %s: %s nie wysłane: %s", conn.name, msg.get("type"), e)
 
     def drop(self, tid: str):
         conn = self.conns.pop(tid, None)

@@ -25,6 +25,9 @@ Centrum -> tablet:
     text    {from, time, text, format?} (+ bajty mowy, gdy jest)
     game    {from, ...}                              od drugiego tabletu
     config  {tablet}                                 zmiana konfiguracji w panelu
+    charger {power, energy}                          moc ładowarki (W) i energia ładowania (kWh)
+                                                     z encji tabletu w panelu (null = brak);
+                                                     po połączeniu, po zmianie wartości i konfiguracji
     result  {req, ok, error?, sent, skipped}         wynik voice / text
 """
 import json

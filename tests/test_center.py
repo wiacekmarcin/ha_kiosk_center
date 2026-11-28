@@ -174,11 +174,16 @@ async def main():
         async with session.post(f"{base}/api/tablets", json={"name": "Zły", "ip": "300.1.1.1"}) as r:
             body = await r.json()
             check(r.status == 400 and "IP" in body["error"], f"walidacja: {body.get('error')}")
-        async with session.put(f"{base}/api/tablets/{ids['Test B']}", json={"audio_format": "mp3",
-                                                                          "place": "Test"}) as r:
+        ha.states["sensor.charger_9_power"] = {"state": "6.5", "attributes": {"unit_of_measurement": "W"}}
+        async with session.put(f"{base}/api/tablets/{ids['Test B']}", json={
+                "audio_format": "mp3", "place": "Test",
+                "power_entity": "sensor.charger_9_power", "energy_entity": "sensor.charger_9_energy"}) as r:
             check(r.status == 200, "zmiana konfiguracji B")
         c = await b.recv_type("config")
         check(c[0]["tablet"]["audio_format"] == "mp3", "B dostał nową konfigurację")
+        ch = await b.recv_type("charger")
+        check(ch is not None and ch[0].get("power") == 6.5 and ch[0].get("energy") is not None,
+              f"B dostał po TCP moc i energię ładowarki: {ch and ch[0]}")
         async with session.post(f"{base}/api/voice?to={ids['Test B']}&force=1", data=src,
                                 headers={"Content-Type": "audio/webm"}) as r:
             rep = await r.json()
